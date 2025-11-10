@@ -10,7 +10,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { saveContact } from "@/lib/user-storage";
+import { saveContact, getProfile } from "@/lib/user-storage";
+import { getWebRTCManager } from "@/lib/webrtc-manager";
 import type { Contact } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { Scan, UserPlus } from "lucide-react";
@@ -68,6 +69,29 @@ export function AddContactDialog({
       };
 
       await saveContact(contact);
+      
+      // Send contact-info message to the new contact
+      const profile = await getProfile();
+      if (profile) {
+        const webrtcManager = getWebRTCManager();
+        try {
+          // Attempt to connect and send contact info
+          const connected = await webrtcManager.ensureConnection(contact);
+          if (connected) {
+            webrtcManager.sendMessage(contact.peerId, {
+              type: 'contact-info',
+              messageId: nanoid(),
+              timestamp: Date.now(),
+              data: {
+                peerId: profile.id,
+                displayName: profile.displayName,
+              },
+            });
+          }
+        } catch (error) {
+          console.log('Could not send contact-info immediately, will retry on connection');
+        }
+      }
       
       toast({
         title: "Contact added!",

@@ -6,7 +6,12 @@ SecureChat is a peer-to-peer encrypted messaging application with audio and vide
 **Key Features:**
 - End-to-end encrypted peer-to-peer messaging
 - Audio and video calling via WebRTC
-- QR code-based contact sharing
+- QR code-based contact sharing with camera preview
+- Bidirectional contact adding (both users auto-add each other)
+- Profile viewer with QR code display on chat page
+- Media file support with download capability
+- Emoji picker for rich messaging
+- Desktop and mobile notifications with custom sound alerts
 - Local-only data storage (IndexedDB)
 - No account or phone number required
 - Real-time WebSocket signaling for P2P connections
@@ -14,11 +19,29 @@ SecureChat is a peer-to-peer encrypted messaging application with audio and vide
 **Current State:** Fully configured and running on Replit. The application is ready for development and deployment.
 
 ## Recent Changes
-**November 10, 2025** - Initial Replit setup
-- Configured Vite dev server with Replit proxy support (allowedHosts: true)
-- Set up workflow to run on port 5000
-- Configured autoscale deployment with build and run commands
-- Created project documentation
+**November 10, 2025** - Feature Enhancement Sprint
+- ✅ **Profile Dialog Integration:** Added Profile button in ChatApp header to view user QR code and ID
+- ✅ **Media Download Functionality:** Implemented download buttons for all media types (images, videos, audio, files) with proper MIME type detection
+- ✅ **Bidirectional Contact Adding:** Users who are added automatically receive and add the contact back
+  - Global WebRTC message handler for 'contact-info' messages
+  - Validation to prevent self-addition and peerId spoofing
+  - Real-time UI refresh when contacts are auto-added via ref-based callback mechanism
+- ✅ **Emoji Picker:** Integrated emoji-picker-react library with popover UI in message input
+- ✅ **Notification System:** Desktop and mobile notifications with custom WAV sound playback
+  - Permission management for browser notifications
+  - Smart notification behavior (sound only when window focused, notification when unfocused)
+  - Notifications for new messages and auto-added contacts
+- 📦 Installed @types/crypto-js for proper TypeScript support
+- 🔧 Fixed closure bug in PeerConnectionContext using useRef for callbacks
+- ✅ All features verified by architect review
+
+**November 10, 2025** - GitHub Import Setup
+- Installed npm dependencies (500 packages)
+- Fixed TypeScript error in server/routes.ts (null check for currentPeerId)
+- Verified Vite configuration with allowedHosts: true for Replit proxy support
+- Configured dev-server workflow running on port 5000 (webview output)
+- Set up autoscale deployment with build (`npm run build`) and run (`npm start`) commands
+- Application tested and running successfully with WebSocket signaling server active
 
 ## Project Architecture
 
@@ -59,8 +82,13 @@ SecureChat is a peer-to-peer encrypted messaging application with audio and vide
 ### Key Components
 - **Welcome.tsx:** Onboarding flow for creating user profile and displaying QR code
 - **ChatApp.tsx:** Main chat interface with contacts list and message windows
+- **ChatWindow.tsx:** Individual chat view with message history, emoji picker, and media support
 - **QRScanner.tsx:** Camera-based QR code scanning for adding contacts
-- **webrtc-manager.ts:** Handles WebRTC peer connections and data channels
+- **ProfileDialog.tsx:** User profile viewer with QR code display
+- **AddContactDialog.tsx:** Manual contact addition with contact-info exchange
+- **webrtc-manager.ts:** Handles WebRTC peer connections, data channels, and global message handlers
+- **peer-connection-context.tsx:** React context for managing peer connections and contact change notifications
+- **notifications.ts:** Notification manager with sound playback and permission handling
 - **user-storage.ts:** IndexedDB wrapper for local data persistence
 
 ## Configuration
@@ -104,9 +132,11 @@ The WebSocket server is only for signaling to establish P2P connections. It does
 
 ### Known Limitations
 - P2P connections require both users to be online simultaneously
+- No offline message queue (messages sent to offline peers are lost)
 - No message history sync across devices (local storage only)
 - Relies on WebSocket server for initial peer discovery
 - NAT/firewall issues may affect P2P connectivity (would need TURN servers)
+- GIF picker not yet implemented (planned feature)
 
 ## Design System
 See `design_guidelines.md` for comprehensive design principles, component specifications, and visual guidelines following modern messaging app patterns (Telegram, Signal, Discord).

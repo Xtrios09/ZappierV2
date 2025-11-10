@@ -4,12 +4,15 @@ import type { Contact, Message, UserProfile } from "@shared/schema";
 import { getMessagesByContact, saveMessage } from "@/lib/user-storage";
 import { usePeerConnection } from "@/lib/peer-connection-context";
 import { getWebRTCManager } from "@/lib/webrtc-manager";
+import { getNotificationManager } from "@/lib/notifications";
 import { nanoid } from "nanoid";
+import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, MoreVertical, Paperclip, Send, Image as ImageIcon, Check, CheckCheck, FileIcon, Download } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ArrowLeft, MoreVertical, Paperclip, Send, Image as ImageIcon, Check, CheckCheck, FileIcon, Download, Smile } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ChatWindowProps {
@@ -18,14 +21,23 @@ interface ChatWindowProps {
   onBack?: () => void;
 }
 
+function getFileType(mimeType: string): "image" | "video" | "audio" | "file" {
+  if (mimeType.startsWith('image/')) return 'image';
+  if (mimeType.startsWith('video/')) return 'video';
+  if (mimeType.startsWith('audio/')) return 'audio';
+  return 'file';
+}
+
 export function ChatWindow({ contact, profile, onBack }: ChatWindowProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageText, setMessageText] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { connectionStatuses, connectToPeer } = usePeerConnection();
   const webrtcManager = getWebRTCManager();
+  const notificationManager = getNotificationManager();
   const fileChunksRef = useRef<Map<string, { meta: any; chunks: (Uint8Array | null)[]; receivedCount: number }>>(new Map());
 
   useEffect(() => {
@@ -58,6 +70,9 @@ export function ChatWindow({ contact, profile, onBack }: ChatWindowProps) {
         
         await saveMessage(receivedMessage);
         setMessages(prev => [...prev, receivedMessage]);
+        
+        // Show notification for new message
+        notificationManager.notifyNewMessage(contact.displayName, receivedMessage.content);
       } else if (webrtcMessage.type === 'file') {
         // Handle file transfer
         if (webrtcMessage.data.fileId) {
@@ -107,7 +122,7 @@ export function ChatWindow({ contact, profile, onBack }: ChatWindowProps) {
               id: fileId,
               contactId: contact.id,
               content: fileTransfer.meta.name,
-              type: fileTransfer.meta.mimeType.startsWith('image/') ? 'image' : 'file',
+              type: getFileType(fileTransfer.meta.mimeType),
               sender: 'them',
               timestamp: webrtcMessage.timestamp,
               status: 'delivered',
@@ -120,6 +135,9 @@ export function ChatWindow({ contact, profile, onBack }: ChatWindowProps) {
             await saveMessage(receivedMessage);
             setMessages(prev => [...prev, receivedMessage]);
             fileChunksRef.current.delete(fileId);
+            
+            // Show notification for received file
+            notificationManager.notifyNewMessage(contact.displayName, `Sent a file: ${receivedMessage.content}`);
           }
         } else {
           // This is metadata
@@ -217,6 +235,11 @@ export function ChatWindow({ contact, profile, onBack }: ChatWindowProps) {
     }
   }
 
+  function handleEmojiClick(emojiData: EmojiClickData) {
+    setMessageText(prev => prev + emojiData.emoji);
+    setShowEmojiPicker(false);
+  }
+
   function handleFileSelect() {
     fileInputRef.current?.click();
   }
@@ -250,7 +273,7 @@ export function ChatWindow({ contact, profile, onBack }: ChatWindowProps) {
       id: messageId,
       contactId: contact.id,
       content: file.name,
-      type: file.type.startsWith('image/') ? 'image' : 'file',
+      type: getFileType(file.type),
       sender: "me",
       timestamp,
       status: "sending",
@@ -438,11 +461,72 @@ export function ChatWindow({ contact, profile, onBack }: ChatWindowProps) {
                           <img
                             src={message.fileData.url}
                             alt={message.fileData.name}
+                            className="rounded-2xl max-w-full h-auto cursor-pointer"
+                            onClick={() => window.open(message.fileData?.url)}
+                          />
+                          <a
+                            href={message.fileData.url}
+                            download={message.fileData.name}
+                            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download {message.fileData.name}
+                          </a>
+                        </div>
+                      )}
+                      {message.type === "video" && message.fileData && (
+                        <div className="space-y-2">
+                          <video
+                            src={message.fileData.url}
+                            controls
                             className="rounded-2xl max-w-full h-auto"
                           />
-                          {message.content && (
-                            <p className="text-sm">{message.content}</p>
-                          )}
+                          <a
+                            href={message.fileData.url}
+                            download={message.fileData.name}
+                            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download {message.fileData.name}
+                          </a>
+                        </div>
+                      )}
+                      {message.type === "audio" && message.fileData && (
+                        <div className="space-y-2">
+                          <audio
+                            src={message.fileData.url}
+                            controls
+                            className="w-full"
+                          />
+                          <a
+                            href={message.fileData.url}
+                            download={message.fileData.name}
+                            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download {message.fileData.name}
+                          </a>
+                        </div>
+                      )}
+                      {message.type === "file" && message.fileData && (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">
+                            <FileIcon className="h-8 w-8 text-muted-foreground" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">{message.fileData.name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {(message.fileData.size / 1024).toFixed(1)} KB
+                              </p>
+                            </div>
+                          </div>
+                          <a
+                            href={message.fileData.url}
+                            download={message.fileData.name}
+                            className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download
+                          </a>
                         </div>
                       )}
                       <div
@@ -485,6 +569,22 @@ export function ChatWindow({ contact, profile, onBack }: ChatWindowProps) {
           >
             <Paperclip className="h-5 w-5" />
           </Button>
+
+          <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+            <PopoverTrigger asChild>
+              <Button
+                data-testid="button-emoji"
+                variant="ghost"
+                size="icon"
+                className="hover-elevate active-elevate-2 flex-shrink-0"
+              >
+                <Smile className="h-5 w-5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0 border-none" side="top" align="start">
+              <EmojiPicker onEmojiClick={handleEmojiClick} />
+            </PopoverContent>
+          </Popover>
 
           <div className="flex-1 relative">
             <Textarea

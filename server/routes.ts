@@ -27,11 +27,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           case 'register':
             // Register peer with their ID
             currentPeerId = message.peerId;
-            peers.set(currentPeerId, {
-              peerId: currentPeerId,
-              ws,
-              displayName: message.displayName,
-            });
+            if (currentPeerId) {
+              peers.set(currentPeerId, {
+                peerId: currentPeerId,
+                ws,
+                displayName: message.displayName,
+              });
+            }
             console.log(`Peer registered: ${currentPeerId}`);
             
             // Send success response

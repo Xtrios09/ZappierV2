@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, X } from "lucide-react";
 import { nanoid } from "nanoid";
 import { saveContact, getProfile } from "@/lib/user-storage";
+import { getWebRTCManager } from "@/lib/webrtc-manager";
 import type { Contact } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 
@@ -85,6 +86,25 @@ export default function QRScanner() {
     };
 
     await saveContact(contact);
+    
+    // Send contact-info message to the new contact
+    const webrtcManager = getWebRTCManager();
+    try {
+      const connected = await webrtcManager.ensureConnection(contact);
+      if (connected) {
+        webrtcManager.sendMessage(contact.peerId, {
+          type: 'contact-info',
+          messageId: nanoid(),
+          timestamp: Date.now(),
+          data: {
+            peerId: profile.id,
+            displayName: profile.displayName,
+          },
+        });
+      }
+    } catch (error) {
+      console.log('Could not send contact-info immediately, will retry on connection');
+    }
     
     toast({
       title: "Contact added!",

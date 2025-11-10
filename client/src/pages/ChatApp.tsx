@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { getProfile, getAllContacts } from "@/lib/user-storage";
+import { usePeerConnection } from "@/lib/peer-connection-context";
 import type { UserProfile, Contact } from "@shared/schema";
 import { ContactsList } from "@/components/ContactsList";
 import { ChatWindow } from "@/components/ChatWindow";
 import { AddContactDialog } from "@/components/AddContactDialog";
+import { ProfileDialog } from "@/components/ProfileDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { MessageSquarePlus } from "lucide-react";
+import { MessageSquarePlus, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function ChatApp() {
@@ -15,18 +17,26 @@ export default function ChatApp() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
   const [showAddContact, setShowAddContact] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 768);
   const [showMobileChat, setShowMobileChat] = useState(false);
+  const { onContactsChanged } = usePeerConnection();
 
   useEffect(() => {
     loadData();
+    
+    // Subscribe to contact changes (for auto-added contacts)
+    const unsubscribe = onContactsChanged(loadData);
 
     const handleResize = () => {
       setIsMobileView(window.innerWidth < 768);
     };
 
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      unsubscribe();
+    };
   }, []);
 
   async function loadData() {
@@ -78,6 +88,15 @@ export default function ChatApp() {
               <div className="flex items-center gap-2">
                 <ThemeToggle />
                 <Button
+                  data-testid="button-profile"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => setShowProfile(true)}
+                  className="hover-elevate active-elevate-2"
+                >
+                  <User className="h-5 w-5" />
+                </Button>
+                <Button
                   data-testid="button-add-contact"
                   size="icon"
                   onClick={() => setShowAddContact(true)}
@@ -103,6 +122,11 @@ export default function ChatApp() {
           onContactAdded={handleContactAdded}
           currentUserId={profile?.id || ""}
         />
+        <ProfileDialog
+          open={showProfile}
+          onOpenChange={setShowProfile}
+          profile={profile}
+        />
       </div>
     );
   }
@@ -117,6 +141,15 @@ export default function ChatApp() {
           <h1 className="text-xl font-semibold">Messages</h1>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <Button
+              data-testid="button-profile"
+              size="icon"
+              variant="ghost"
+              onClick={() => setShowProfile(true)}
+              className="hover-elevate active-elevate-2"
+            >
+              <User className="h-5 w-5" />
+            </Button>
             <Button
               data-testid="button-add-contact"
               size="icon"
@@ -168,6 +201,11 @@ export default function ChatApp() {
         onOpenChange={setShowAddContact}
         onContactAdded={handleContactAdded}
         currentUserId={profile?.id || ""}
+      />
+      <ProfileDialog
+        open={showProfile}
+        onOpenChange={setShowProfile}
+        profile={profile}
       />
     </div>
   );

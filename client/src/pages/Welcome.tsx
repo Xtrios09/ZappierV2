@@ -81,7 +81,7 @@ export default function Welcome() {
               <Lock className="h-10 w-10 text-primary-foreground" />
             </div>
           </div>
-          <h1 className="text-4xl font-bold tracking-tight">SecureChat</h1>
+          <h1 className="text-4xl font-bold tracking-tight">Zappier</h1>
           <p className="text-muted-foreground">
             End-to-end encrypted peer-to-peer messaging
           </p>

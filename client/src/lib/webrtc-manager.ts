@@ -5,7 +5,7 @@ import type { Contact } from '@shared/schema';
 export type PeerConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'failed';
 
 export interface WebRTCMessage {
-  type: 'chat' | 'file' | 'typing' | 'read-receipt' | 'call-offer' | 'call-answer' | 'call-end';
+  type: 'chat' | 'file' | 'typing' | 'read-receipt' | 'call-offer' | 'call-answer' | 'call-end' | 'contact-info';
   messageId: string;
   timestamp: number;
   data: any;
@@ -21,6 +21,7 @@ export class WebRTCManager {
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000;
   private messageHandlers: Map<string, (message: WebRTCMessage) => void> = new Map();
+  private globalMessageHandlers: Array<(peerId: string, message: WebRTCMessage) => void> = [];
   private statusHandlers: Map<string, (status: PeerConnectionStatus) => void> = new Map();
   private peerStatusHandlers: Array<(peerId: string, status: 'online' | 'offline') => void> = [];
   private isReinitializing = false;
@@ -260,10 +261,15 @@ export class WebRTCManager {
   private handlePeerData(peerId: string, data: any) {
     try {
       const message: WebRTCMessage = typeof data === 'string' ? JSON.parse(data) : data;
+      
+      // Call per-peer handler if exists
       const handler = this.messageHandlers.get(peerId);
       if (handler) {
         handler(message);
       }
+      
+      // Call all global handlers
+      this.globalMessageHandlers.forEach(handler => handler(peerId, message));
     } catch (error) {
       console.error('Error handling peer data:', error);
     }
@@ -295,7 +301,7 @@ export class WebRTCManager {
     return false;
   }
 
-  async ensureConnection(contact: { id: string; peerId: string; displayName: string }): Promise<boolean> {
+  async ensureConnection(contact: Contact): Promise<boolean> {
     const conn = this.connections.get(contact.peerId);
     
     // If connection exists and is open, we're good
@@ -323,6 +329,10 @@ export class WebRTCManager {
 
   onMessage(peerId: string, handler: (message: WebRTCMessage) => void) {
     this.messageHandlers.set(peerId, handler);
+  }
+
+  onGlobalMessage(handler: (peerId: string, message: WebRTCMessage) => void) {
+    this.globalMessageHandlers.push(handler);
   }
 
   onStatusChange(contactId: string, handler: (status: PeerConnectionStatus) => void) {
