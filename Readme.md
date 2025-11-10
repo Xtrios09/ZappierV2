@@ -1,6 +1,10 @@
 # ZappierV2
 
 A serverless, privacy-first messaging application that enables secure peer-to-peer communication without requiring servers, logins, or data collection.
+<img width="1034" height="895" alt="image" src="https://github.com/user-attachments/assets/c8203f0d-896e-47dc-9c44-6861daf9868d" />
+<img width="1855" height="388" alt="image" src="https://github.com/user-attachments/assets/d5efdbfc-5016-4a65-934b-e5255caa7a1a" />
+<img width="1869" height="999" alt="image" src="https://github.com/user-attachments/assets/aeea7a9e-4df5-4031-a309-6d02373827f5" />
+
 
 ***Demo here: https://zappierv2.onrender.com/***
 
