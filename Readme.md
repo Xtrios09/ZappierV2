@@ -6,7 +6,7 @@ A serverless, privacy-first messaging application that enables secure peer-to-pe
 <img width="1869" height="999" alt="image" src="https://github.com/user-attachments/assets/aeea7a9e-4df5-4031-a309-6d02373827f5" />
 
 
-***Demo here: https://zappierv2.onrender.com/***
+
 
 ## Overview
 
